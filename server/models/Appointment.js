@@ -1,3 +1,6 @@
+
+
+
 // // models/Appointment.js
 // const mongoose = require("mongoose");
 
@@ -35,6 +38,10 @@
 //       startTime: { type: String, required: true },
 //       endTime: { type: String, required: true }
 //     },
+//     timeSlotId: {  // NEW FIELD - Add this
+//       type: mongoose.Schema.Types.ObjectId,
+//       required: true
+//     },
 //     status: {
 //       type: String,
 //       enum: ["pending", "confirmed", "cancelled", "completed"],
@@ -67,11 +74,18 @@
 
 
 
-// models/Appointment.js
+
+
+
 const mongoose = require("mongoose");
 
 const appointmentSchema = new mongoose.Schema(
   {
+    userId: {  // NEW FIELD - Add this
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      required: true
+    },
     doctorId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Doctor",
@@ -104,7 +118,7 @@ const appointmentSchema = new mongoose.Schema(
       startTime: { type: String, required: true },
       endTime: { type: String, required: true }
     },
-    timeSlotId: {  // NEW FIELD - Add this
+    timeSlotId: {
       type: mongoose.Schema.Types.ObjectId,
       required: true
     },

@@ -1,7 +1,9 @@
+
+
 // // controllers/appointmentController.js
 // const Appointment = require("../models/Appointment");
 
-// // Create new appointment
+// // controllers/appointmentController.js - createAppointment function එක update කරන්න
 // exports.createAppointment = async (req, res) => {
 //   try {
 //     const {
@@ -10,41 +12,149 @@
 //       doctorSpecialization,
 //       patientDetails,
 //       appointmentDate,
-//       timeSlot
+//       timeSlot,
+//       timeSlotId
 //     } = req.body;
 
-//     // Check for conflicting appointments
-//     const conflictingAppointment = await Appointment.findOne({
+//     console.log('📅 Creating appointment with data:', {
 //       doctorId,
-//       appointmentDate,
-//       "timeSlot.startTime": timeSlot.startTime,
-//       "timeSlot.endTime": timeSlot.endTime,
-//       status: { $in: ["pending", "confirmed"] }
+//       timeSlotId,
+//       patientName: patientDetails?.fullName,
+//       appointmentDate
 //     });
 
-//     if (conflictingAppointment) {
-//       return res.status(409).json({
-//         error: "This time slot is already booked. Please choose another time."
+//     // Validate required fields
+//     if (!timeSlotId) {
+//       return res.status(400).json({
+//         error: "Time slot ID is required"
 //       });
 //     }
 
+//     if (!doctorId) {
+//       return res.status(400).json({
+//         error: "Doctor ID is required"
+//       });
+//     }
+
+//     // Get doctor to check slot quantity
+//     const Doctor = require("../models/Doctor");
+//     const doctor = await Doctor.findById(doctorId);
+    
+//     if (!doctor) {
+//       return res.status(404).json({ error: "Doctor not found" });
+//     }
+
+//     // Find the specific time slot in doctor's available slots
+//     const doctorTimeSlot = doctor.availableTimeSlots.find(slot => 
+//       slot._id.toString() === timeSlotId
+//     );
+
+//     if (!doctorTimeSlot) {
+//       return res.status(404).json({ error: "Time slot not found for this doctor" });
+//     }
+
+//     const slotQuantity = doctorTimeSlot.quantity || 20;
+
+//     // Count existing appointments for this slot - FIXED LOGIC
+//     const existingAppointmentsCount = await Appointment.countDocuments({
+//       doctorId: doctorId,
+//       timeSlotId: timeSlotId,
+//       status: { $in: ["pending", "confirmed"] }
+//     });
+
+//     console.log(`📊 Slot ${timeSlotId}: ${existingAppointmentsCount}/${slotQuantity} appointments`);
+
+//     // Check if slot is full based on quantity
+//     if (existingAppointmentsCount >= slotQuantity) {
+//       return res.status(409).json({
+//         error: `This time slot is fully booked. Maximum ${slotQuantity} appointments allowed.`,
+//         available: 0,
+//         booked: existingAppointmentsCount,
+//         capacity: slotQuantity
+//       });
+//     }
+
+//     // Check for duplicate appointments for the same patient in the same slot
+//     const duplicateAppointment = await Appointment.findOne({
+//       doctorId: doctorId,
+//       timeSlotId: timeSlotId,
+//       "patientDetails.phoneNumber": patientDetails.phoneNumber,
+//       status: { $in: ["pending", "confirmed"] }
+//     });
+
+//     if (duplicateAppointment) {
+//       return res.status(409).json({
+//         error: "You already have an appointment booked for this time slot.",
+//         existingAppointment: {
+//           id: duplicateAppointment._id,
+//           appointmentDate: duplicateAppointment.appointmentDate
+//         }
+//       });
+//     }
+
+//     // Create new appointment
 //     const appointment = new Appointment({
 //       doctorId,
 //       doctorName,
 //       doctorSpecialization,
-//       patientDetails,
-//       appointmentDate,
-//       timeSlot
+//       patientDetails: {
+//         fullName: patientDetails.fullName?.trim(),
+//         email: patientDetails.email?.trim() || "",
+//         phoneNumber: patientDetails.phoneNumber?.trim(),
+//         dateOfBirth: patientDetails.dateOfBirth || "",
+//         gender: patientDetails.gender || "",
+//         address: patientDetails.address || "",
+//         medicalConcern: patientDetails.medicalConcern?.trim(),
+//         previousConditions: patientDetails.previousConditions || ""
+//       },
+//       appointmentDate: new Date(appointmentDate),
+//       timeSlot: {
+//         day: timeSlot.day,
+//         startTime: timeSlot.startTime,
+//         endTime: timeSlot.endTime
+//       },
+//       timeSlotId: timeSlotId,
+//       status: "pending"
 //     });
 
 //     await appointment.save();
 
-//     res.status(201).json({
-//       message: "Appointment booked successfully",
-//       appointment
+//     console.log('✅ Appointment created successfully:', {
+//       id: appointment._id,
+//       appointmentNumber: appointment.appointmentNumber,
+//       patient: patientDetails.fullName,
+//       timeSlot: timeSlotId,
+//       remainingSlots: slotQuantity - existingAppointmentsCount - 1
 //     });
+    
+//     res.status(201).json({
+//       message: "Appointment booked successfully!",
+//       appointment: {
+//         id: appointment._id,
+//         appointmentNumber: appointment.appointmentNumber,
+//         patientName: patientDetails.fullName,
+//         appointmentDate: appointment.appointmentDate,
+//         timeSlot: appointment.timeSlot,
+//         status: appointment.status
+//       },
+//       availability: {
+//         remaining: slotQuantity - existingAppointmentsCount - 1,
+//         booked: existingAppointmentsCount + 1,
+//         capacity: slotQuantity
+//       }
+//     });
+
 //   } catch (error) {
-//     console.error("Error creating appointment:", error);
+//     console.error("❌ Error creating appointment:", error);
+    
+//     // Handle duplicate key errors (if any)
+//     if (error.code === 11000) {
+//       return res.status(409).json({
+//         error: "Appointment already exists with these details.",
+//         details: "Duplicate appointment detected"
+//       });
+//     }
+    
 //     res.status(500).json({ 
 //       error: "Failed to book appointment", 
 //       details: error.message 
@@ -52,7 +162,48 @@
 //   }
 // };
 
+// // Get appointment statistics for a doctor - SINGLE VERSION (Remove the duplicate)
+// exports.getAppointmentStats = async (req, res) => {
+//   try {
+//     const { doctorId } = req.params;
+    
+//     console.log(`📊 Fetching appointment stats for doctor: ${doctorId}`);
+    
+//     // Validate doctorId
+//     if (!doctorId) {
+//       return res.status(400).json({ error: "Doctor ID is required" });
+//     }
 
+//     // Get all confirmed and pending appointments for this doctor
+//     const appointments = await Appointment.find({
+//       doctorId: doctorId,
+//       status: { $in: ["pending", "confirmed"] }
+//     });
+
+//     console.log(`✅ Found ${appointments.length} appointments for doctor ${doctorId}`);
+
+//     // Count appointments per timeSlotId
+//     const stats = {};
+//     appointments.forEach(appointment => {
+//       const slotId = appointment.timeSlotId?.toString();
+//       if (slotId) {
+//         if (!stats[slotId]) {
+//           stats[slotId] = 0;
+//         }
+//         stats[slotId]++;
+//       }
+//     });
+
+//     console.log('📈 Appointment stats:', stats);
+//     res.status(200).json(stats);
+//   } catch (error) {
+//     console.error("❌ Error fetching appointment stats:", error);
+//     res.status(500).json({ 
+//       error: "Failed to fetch appointment statistics", 
+//       details: error.message 
+//     });
+//   }
+// };
 
 // // Get all appointments
 // exports.getAllAppointments = async (req, res) => {
@@ -148,13 +299,16 @@
 
 
 
-// controllers/appointmentController.js
+
+
+
 const Appointment = require("../models/Appointment");
 
-// controllers/appointmentController.js - createAppointment function එක update කරන්න
+// Create appointment with user ID
 exports.createAppointment = async (req, res) => {
   try {
     const {
+      userId,  // NEW - Get userId from request body
       doctorId,
       doctorName,
       doctorSpecialization,
@@ -165,6 +319,7 @@ exports.createAppointment = async (req, res) => {
     } = req.body;
 
     console.log('📅 Creating appointment with data:', {
+      userId,
       doctorId,
       timeSlotId,
       patientName: patientDetails?.fullName,
@@ -172,6 +327,12 @@ exports.createAppointment = async (req, res) => {
     });
 
     // Validate required fields
+    if (!userId) {
+      return res.status(400).json({
+        error: "User ID is required"
+      });
+    }
+
     if (!timeSlotId) {
       return res.status(400).json({
         error: "Time slot ID is required"
@@ -203,7 +364,7 @@ exports.createAppointment = async (req, res) => {
 
     const slotQuantity = doctorTimeSlot.quantity || 20;
 
-    // Count existing appointments for this slot - FIXED LOGIC
+    // Count existing appointments for this slot
     const existingAppointmentsCount = await Appointment.countDocuments({
       doctorId: doctorId,
       timeSlotId: timeSlotId,
@@ -242,6 +403,7 @@ exports.createAppointment = async (req, res) => {
 
     // Create new appointment
     const appointment = new Appointment({
+      userId,  // NEW - Include userId
       doctorId,
       doctorName,
       doctorSpecialization,
@@ -270,6 +432,7 @@ exports.createAppointment = async (req, res) => {
     console.log('✅ Appointment created successfully:', {
       id: appointment._id,
       appointmentNumber: appointment.appointmentNumber,
+      userId: userId,
       patient: patientDetails.fullName,
       timeSlot: timeSlotId,
       remainingSlots: slotQuantity - existingAppointmentsCount - 1
@@ -280,6 +443,7 @@ exports.createAppointment = async (req, res) => {
       appointment: {
         id: appointment._id,
         appointmentNumber: appointment.appointmentNumber,
+        userId: appointment.userId,
         patientName: patientDetails.fullName,
         appointmentDate: appointment.appointmentDate,
         timeSlot: appointment.timeSlot,
@@ -310,7 +474,39 @@ exports.createAppointment = async (req, res) => {
   }
 };
 
-// Get appointment statistics for a doctor - SINGLE VERSION (Remove the duplicate)
+// Get appointments by user ID - NEW FUNCTION
+exports.getAppointmentsByUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    console.log(`📋 Fetching appointments for user: ${userId}`);
+    
+    // Validate userId
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" });
+    }
+
+    const appointments = await Appointment.find({ userId })
+      .sort({ appointmentDate: -1, createdAt: -1 });
+
+    console.log(`✅ Found ${appointments.length} appointments for user ${userId}`);
+    
+    res.status(200).json({
+      success: true,
+      message: "Appointments fetched successfully",
+      appointments: appointments
+    });
+  } catch (error) {
+    console.error("❌ Error fetching user appointments:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to fetch appointments", 
+      details: error.message 
+    });
+  }
+};
+
+// Get appointment statistics for a doctor
 exports.getAppointmentStats = async (req, res) => {
   try {
     const { doctorId } = req.params;
@@ -357,6 +553,7 @@ exports.getAppointmentStats = async (req, res) => {
 exports.getAllAppointments = async (req, res) => {
   try {
     const appointments = await Appointment.find()
+      .populate('userId', 'username email')  // NEW - Populate user data
       .sort({ appointmentDate: -1, createdAt: -1 });
     
     console.log(`Found ${appointments.length} appointments`);
@@ -377,6 +574,7 @@ exports.getAppointmentsByDoctor = async (req, res) => {
     const { doctorId } = req.params;
     
     const appointments = await Appointment.find({ doctorId })
+      .populate('userId', 'username email')  // NEW - Populate user data
       .sort({ appointmentDate: 1, "timeSlot.startTime": 1 });
 
     res.status(200).json(appointments);
@@ -394,7 +592,8 @@ exports.getAppointmentById = async (req, res) => {
   try {
     const { id } = req.params;
     
-    const appointment = await Appointment.findById(id);
+    const appointment = await Appointment.findById(id)
+      .populate('userId', 'username email');  // NEW - Populate user data
     
     if (!appointment) {
       return res.status(404).json({ error: "Appointment not found" });
@@ -439,6 +638,88 @@ exports.updateAppointmentStatus = async (req, res) => {
     console.error("Error updating appointment:", error);
     res.status(500).json({ 
       error: "Failed to update appointment", 
+      details: error.message 
+    });
+  }
+};
+
+// Cancel appointment - NEW FUNCTION
+exports.cancelAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body; // User ID to verify ownership
+
+    const appointment = await Appointment.findById(id);
+    
+    if (!appointment) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Appointment not found" 
+      });
+    }
+
+    // Check if the user owns this appointment
+    if (appointment.userId.toString() !== userId) {
+      return res.status(403).json({ 
+        success: false,
+        error: "You are not authorized to cancel this appointment" 
+      });
+    }
+
+    // Check if appointment can be cancelled (only pending or confirmed)
+    if (!["pending", "confirmed"].includes(appointment.status)) {
+      return res.status(400).json({ 
+        success: false,
+        error: `Cannot cancel appointment with status: ${appointment.status}` 
+      });
+    }
+
+    // Update status to cancelled
+    appointment.status = "cancelled";
+    await appointment.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Appointment cancelled successfully",
+      appointment
+    });
+  } catch (error) {
+    console.error("❌ Error cancelling appointment:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to cancel appointment", 
+      details: error.message 
+    });
+  }
+};
+
+
+// Add this to your appointmentController.js
+
+// Delete appointment
+exports.deleteAppointment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const appointment = await Appointment.findByIdAndDelete(id);
+    
+    if (!appointment) {
+      return res.status(404).json({ 
+        success: false,
+        error: "Appointment not found" 
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Appointment deleted successfully",
+      deletedAppointment: appointment
+    });
+  } catch (error) {
+    console.error("❌ Error deleting appointment:", error);
+    res.status(500).json({ 
+      success: false,
+      error: "Failed to delete appointment", 
       details: error.message 
     });
   }

@@ -18,6 +18,11 @@ import UserDashboard from "./pages/UserDashBoard";
 import DoctorAppointments from "./Doctor/DoctorAppointments";
 import DashBoard from "./pages/UserProfile";
 import UsersManagement from "./admin/UsersManagement";
+import Navbar from "./components/Navbar";
+import Home from "./pages/Home";
+import MyAppointments from "./pages/MyAppointments";
+import AppointmentDetails from "./pages/AppointmentDetails";
+import AppointmentsManagement from "./admin/AppointmentsManagement";
 
 
 
@@ -34,7 +39,7 @@ const App = () => {
         <Link to="/register">Register</Link> | <Link to="/login">Login</Link> | <Link to="/doctor">doctor</Link>
       </nav> */}
       <Routes>
-        <Route path="/" element={<Register />} />
+        <Route path="/register" element={<Register />} />
         <Route path="/login" element={<Login />} />
         {/* <Route path="/" element={<h1>Welcome to MERN Auth App</h1>} /> */}
         <Route path="/doctor/:id" element={<DoctorProfile />} />
@@ -53,6 +58,11 @@ const App = () => {
         <Route path="/doctor/appointments" element={<DoctorAppointments />} />
         <Route path="/profile" element={<DashBoard />} />
         <Route path="/usersmanagement" element={<UsersManagement />} />
+        <Route path="/navbar" element={<Navbar />} />
+        <Route path="/home" element={<Home />} />
+        <Route path="/myappointments" element={<MyAppointments />} />
+        <Route path="/appointments/:id" element={<AppointmentDetails />} />
+        <Route path="/appointmentsmanagement" element={<AppointmentsManagement />} />
 
 
 

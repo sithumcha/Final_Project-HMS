@@ -1,3 +1,8 @@
+
+
+
+
+
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
@@ -13,6 +18,9 @@ const BookAppointment = () => {
   const [appointmentStats, setAppointmentStats] = useState({});
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  
+  // NEW: User ID state - in a real app, this would come from auth context
+  const [userId, setUserId] = useState("");
   
   // Get selected slot from navigation state
   const preselectedSlot = location.state?.selectedSlot;
@@ -48,6 +56,19 @@ const BookAppointment = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBillPreview, setShowBillPreview] = useState(false);
   const billRef = useRef();
+
+  // NEW: Initialize user ID (in real app, get from auth context/localStorage)
+  useEffect(() => {
+    // For demo purposes - in real app, get from authentication context
+    const currentUserId = localStorage.getItem("userId") || "demo-user-123";
+    setUserId(currentUserId);
+    
+    // If no user ID found, you might want to redirect to login
+    if (!currentUserId) {
+      console.warn("No user ID found. User might need to log in.");
+      // navigate("/login"); // Uncomment to redirect to login
+    }
+  }, [navigate]);
 
   // Print bill functionality
   const handlePrint = useReactToPrint({
@@ -225,8 +246,20 @@ const BookAppointment = () => {
     }
   };
 
+
+
+
+
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // NEW: Check if user ID is available
+    if (!userId) {
+      alert("Please log in to book an appointment.");
+      // navigate("/login"); // Uncomment to redirect to login
+      return;
+    }
     
     if (!selectedSlot || !appointmentDate) {
       alert("Please select both date and time slot");
@@ -249,7 +282,9 @@ const BookAppointment = () => {
     setIsSubmitting(true);
 
     try {
+      // NEW: Include userId in appointment data
       const appointmentData = {
+        userId: userId, // ADDED: Include user ID
         doctorId: id,
         doctorName: `Dr. ${doctor.firstName} ${doctor.lastName}`,
         doctorSpecialization: doctor.specialization,
@@ -280,7 +315,12 @@ const BookAppointment = () => {
         }
       };
 
-      console.log('📤 Sending appointment data:', appointmentData);
+      console.log('📤 Sending appointment data with userId:', userId, appointmentData);
+
+
+
+
+
 
       // Save appointment to database
       const response = await axios.post(
@@ -295,7 +335,7 @@ const BookAppointment = () => {
       );
 
       if (response.status === 201) {
-        console.log('✅ Appointment created successfully:', response.data);
+        console.log('✅ Appointment created successfully with userId:', userId, response.data);
         // Show bill preview instead of immediately navigating
         setShowBillPreview(true);
       }
@@ -330,6 +370,12 @@ const BookAppointment = () => {
       setIsSubmitting(false);
     }
   };
+
+
+
+
+
+  
 
   // Refresh function to update slots and stats
   const refreshDoctorData = async () => {
@@ -683,6 +729,8 @@ const BookAppointment = () => {
                 <p><span className="font-medium">Time:</span> {formatTime(selectedSlot?.startTime)} - {formatTime(selectedSlot?.endTime)}</p>
                 <p><span className="font-medium">Doctor:</span> Dr. {doctor?.firstName} {doctor?.lastName}</p>
                 <p><span className="font-medium">Specialization:</span> {doctor?.specialization}</p>
+                {/* NEW: Display User ID */}
+                <p><span className="font-medium">User ID:</span> {userId}</p>
               </div>
             </div>
           </div>
@@ -791,6 +839,7 @@ const BookAppointment = () => {
                       timeSlot: selectedSlot,
                       doctor,
                       appointmentNumber: selectedSlot?.appointmentNumber,
+                      userId: userId, // NEW: Include userId in navigation state
                       payment: {
                         method: paymentMethod,
                         amount: doctor.price,
@@ -896,6 +945,10 @@ const BookAppointment = () => {
             <p className="text-lg text-gray-600">
               with Dr. {doctor.firstName} {doctor.lastName} - {doctor.specialization}
             </p>
+            {/* NEW: Display User ID */}
+            <div className="mt-2 text-sm text-gray-500">
+              User ID: {userId}
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1250,7 +1303,7 @@ const BookAppointment = () => {
                   {/* Submit Button */}
                   <button
                     type="submit"
-                    disabled={isSubmitting || !selectedSlot || !appointmentDate || isProcessingPayment}
+                    disabled={isSubmitting || !selectedSlot || !appointmentDate || isProcessingPayment || !userId}
                     className="w-full bg-blue-600 text-white py-4 px-6 rounded-lg font-semibold text-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition duration-200"
                   >
                     {isProcessingPayment ? (
@@ -1365,6 +1418,11 @@ const BookAppointment = () => {
                       <p className="text-sm text-blue-700">Payment Method</p>
                       <p className="font-semibold text-blue-900 capitalize">{paymentMethod}</p>
                     </div>
+                    {/* NEW: Display User ID in summary */}
+                    <div>
+                      <p className="text-sm text-blue-700">User ID</p>
+                      <p className="font-semibold text-blue-900 text-sm">{userId}</p>
+                    </div>
                   </div>
                 </div>
               )}
@@ -1413,3 +1471,6 @@ const BookAppointment = () => {
 };
 
 export default BookAppointment;
+
+
+
